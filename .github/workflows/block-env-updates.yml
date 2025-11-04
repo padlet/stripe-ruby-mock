@@ -1,0 +1,53 @@
+name: Block .env Changes
+
+on:
+  push:
+    branches:
+      - quekshuy/block-env-updates-workflow/1
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+jobs:
+  block-env-updates:
+    name: Ensure .env is untouched
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when .env is added, modified, or renamed to
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.info('No pull request context; exiting successfully.');
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100
+            });
+
+            const violatingFiles = files.filter(file => {
+              if (file.filename === '.env' && (file.status === 'added' || file.status === 'modified')) {
+                return true;
+              }
+
+              if (file.status === 'renamed' && file.filename === '.env') {
+                return true;
+              }
+
+              return false;
+            });
+
+            if (violatingFiles.length > 0) {
+              const details = violatingFiles.map(file => `${file.status}: ${file.filename}`).join(', ');
+              core.setFailed(`Blocking pull request because .env file was changed (${details}).`);
+            } else {
+              core.info('No blocked .env changes detected.');
+            }
