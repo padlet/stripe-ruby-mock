@@ -1,6 +1,7 @@
 name: Block .env Changes
 
 on:
+  workflow-dispatch: {}
   push:
     branches:
       - quekshuy/block-env-updates-workflow/1
